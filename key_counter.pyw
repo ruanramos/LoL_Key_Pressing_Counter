@@ -1,12 +1,5 @@
 import keyboard
 
-# with open("read_event.txt", "w") as f1, open("read_key.txt", "w") as f2:
-#     while True:
-#         f1.write(str(keyboard.read_event()))
-#         f1.write(" ")
-
-# def addCount(key):
-
 count_dict = {}
 
 
