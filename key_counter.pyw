@@ -1,4 +1,5 @@
 import keyboard
+import mouse
 import json
 from collections import OrderedDict
 
@@ -9,6 +10,13 @@ close_program = False
 def run():
     keyboard.add_hotkey("ctrl+q", finish)
     keyboard.on_press(on_press_reaction)
+    mouse.on_click(on_left_click_reaction)
+    mouse.on_right_click(on_right_click_reaction)
+    print(
+        "Counting your actions from now on. Press ctrl+q to stop and save the history on {}_key_counter.json file.".format(
+            champion
+        )
+    )
     while True:
         if close_program:
             break
@@ -36,6 +44,22 @@ def on_press_reaction(event):
             print(count_dict)
     else:
         count_dict[event_name] = 1
+
+
+def on_left_click_reaction():
+    global count_dict
+    if "left click" in count_dict:
+        count_dict["left click"] += 1
+    else:
+        count_dict["left click"] = 1
+
+
+def on_right_click_reaction():
+    global count_dict
+    if "right click" in count_dict:
+        count_dict["right click"] += 1
+    else:
+        count_dict["right click"] = 1
 
 
 if __name__ == "__main__":
