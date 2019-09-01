@@ -316,13 +316,17 @@ def game_happening():
 
 
 if __name__ == "__main__":
-    # while not game_happening():
-    #     print("There is no game happening or game window is closed. Want to try again? y/n")
-    #     answer = input()
-    #     if answer == "y" or answer == "yes":
-    #         continue
-    #     else:
-    #         sys.exit(0)
+    print(sys.argv)
+    if len(sys.argv) <= 1:
+        while not game_happening():
+            print(
+                "There is no game happening or game window is closed. Want to try again? y/n"
+            )
+            answer = input()
+            if answer == "y" or answer == "yes":
+                continue
+            else:
+                sys.exit(0)
     scheduler = BackgroundScheduler()
     scheduler.add_job(check_if_right_window, "interval", seconds=0.5)
     scheduler.start()
