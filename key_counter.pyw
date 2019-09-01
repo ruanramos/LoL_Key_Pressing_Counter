@@ -197,7 +197,6 @@ def get_champion_to_be_played():
 def treat_reactions(champion):
     global start_time
     print("You are playing {}!".format(champion))
-    # TODO Get start time here to calculate the time difference
     start_time = int(time.time())
     keyboard.add_hotkey("ctrl+space", lambda: finish(create_file_name(champion)))
     keyboard.on_press(on_press_reaction)
@@ -234,10 +233,11 @@ def write_to_file(file_name, ordered_dict, start_time):
     end_time = int(time.time())
     t1 = str(time.ctime(start_time))
     t2 = str(time.ctime(end_time))
+    time_difference = calculate_time_difenrence(t1, t2)
     # TODO make json correct, without text
     f.write(
         "Start Recording Time: {}\nFinished Recording Time: {}\nGame Time: {}\n".format(
-            t1, t2, calculate_time_difenrence(t1, t2)
+            t1, t2, str(time_difference)
         )
     )
     json.dump(ordered_dict, f, indent=4)
@@ -256,7 +256,7 @@ def calculate_time_difenrence(time1, time2):
         tdelta = timedelta(
             days=0, seconds=tdelta.seconds, microseconds=tdelta.microseconds
         )
-    return str(tdelta)
+    return tdelta
 
 
 def create_counter_json():
