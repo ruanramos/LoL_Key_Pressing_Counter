@@ -6,7 +6,7 @@ import time
 import jellyfish
 import threading
 import sys
-from win32gui import GetWindowText, GetForegroundWindow
+from win32gui import GetWindowText, GetForegroundWindow, FindWindow
 from apscheduler.schedulers.background import BackgroundScheduler
 
 
@@ -220,6 +220,8 @@ def treat_reactions(champion):
     while True:
         if close_program:
             break
+        if not game_happening():
+            finish(create_file_name(champion))
         pass
 
 
@@ -271,7 +273,7 @@ def create_counter_json():
 
 
 def on_press_reaction(event):
-    if not check_if_right_window():
+    if not check_if_right_window() or not game_happening():
         return
     global count_dict
     event_name = event.name
@@ -284,7 +286,7 @@ def on_press_reaction(event):
 
 
 def on_left_click_reaction():
-    if not check_if_right_window():
+    if not check_if_right_window() or not game_happening():
         return
     global count_dict
     if "left click" in count_dict:
@@ -294,7 +296,7 @@ def on_left_click_reaction():
 
 
 def on_right_click_reaction():
-    if not check_if_right_window():
+    if not check_if_right_window() or not game_happening():
         return
     global count_dict
     if "right click" in count_dict:
@@ -308,7 +310,19 @@ def check_if_right_window():
     return LOL_CLIENT_PROCESS_NAME == GetWindowText(GetForegroundWindow())
 
 
+def game_happening():
+    global LOL_CLIENT_PROCESS_NAME
+    return GetWindowText(FindWindow(None, LOL_CLIENT_PROCESS_NAME)) != ""
+
+
 if __name__ == "__main__":
+    # while not game_happening():
+    #     print("There is no game happening or game window is closed. Want to try again? y/n")
+    #     answer = input()
+    #     if answer == "y" or answer == "yes":
+    #         continue
+    #     else:
+    #         sys.exit(0)
     scheduler = BackgroundScheduler()
     scheduler.add_job(check_if_right_window, "interval", seconds=0.5)
     scheduler.start()
