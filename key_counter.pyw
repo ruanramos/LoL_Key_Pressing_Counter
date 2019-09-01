@@ -9,7 +9,11 @@ import sys
 from win32gui import GetWindowText, GetForegroundWindow
 from apscheduler.schedulers.background import BackgroundScheduler
 
-champion_list = [
+
+# TODO Check for simultaneous presses and count it
+# TODO Stop program if too much time out of LoL window (if i forgot to stop)
+
+CHAMPION_LIST = [
     "Aatrox",
     "Ahri",
     "Akali",
@@ -158,16 +162,19 @@ champion_list = [
     "LastElement",
 ]
 
+LOL_CLIENT_PROCESS_NAME = "League of Legends (TM) Client"
+
 count_dict = {}
 close_program = False
 file_name = ""
+start_time = ""
 
 
-def run():
-    global champion_list
+def get_champion_to_be_played():
+    global CHAMPION_LIST
     print("Type the champion you are playing: ")
     champion = input()
-    for c in champion_list:
+    for c in CHAMPION_LIST:
         similarity_ratio = jellyfish.jaro_winkler(c, champion.lower().capitalize())
         if similarity_ratio <= 0.8 and similarity_ratio >= 0.7:
             print("Did you mean {}? y/n".format(c))
@@ -182,18 +189,31 @@ def run():
             break
     if c == "LastElement":
         print("You typed an invalid champion, stopping the program.")
-    print("bye")
+    print("Bye")
     sys.exit(0)
 
 
 def treat_reactions(champion):
+    global start_time
     print("You are playing {}!".format(champion))
-    keyboard.add_hotkey("ctrl+q", lambda: finish(create_file_name(champion)))
+    # TODO Get start time here to calculate the time difference
+    t = time.localtime(time.time())
+    start_time = "{} - {}/{}/{} - {}h:{}m:{}s\n".format(
+        file_name.split("_")[0],
+        t.tm_mday,
+        t.tm_mon,
+        t.tm_year,
+        t.tm_hour,
+        t.tm_min,
+        t.tm_sec,
+    )
+
+    keyboard.add_hotkey("ctrl+space", lambda: finish(create_file_name(champion)))
     keyboard.on_press(on_press_reaction)
     mouse.on_click(on_left_click_reaction)
     mouse.on_right_click(on_right_click_reaction)
     print(
-        "Counting your actions from now on. Press ctrl+q to stop and save the history on {}_key_counter.json file.".format(
+        "Counting your actions from now on. Press ctrl+space to stop and save the history on {}_key_counter.json file.".format(
             champion
         )
     )
@@ -209,40 +229,50 @@ def create_file_name(champion_name):
 
 def finish(file_name):
     global close_program
-    write_to_file(file_name, create_counter_json())
+    global start_time
+    # TODO calculate medium keys per seconds
+    write_to_file(file_name, create_counter_json(), start_time)
     close_program = True
 
 
-def write_to_file(file_name, ordered_dict):
+def write_to_file(file_name, ordered_dict, start_time):
     create_counter_json()
     f = open(file_name, "a")
     t = time.localtime(time.time())
+    # TODO make json correct, without text
     f.write(
-        "{} - {}/{}/{} - {}h:{}m:{}s\n".format(
-            file_name.split("_")[0],
-            t.tm_mday,
-            t.tm_mon,
-            t.tm_year,
-            t.tm_hour,
-            t.tm_min,
-            t.tm_sec,
+        "Start Recording Time: {}Finished Recording Time: {}/{}/{} - {}h:{}m:{}s\n".format(
+            start_time, t.tm_mday, t.tm_mon, t.tm_year, t.tm_hour, t.tm_min, t.tm_sec
         )
     )
     json.dump(ordered_dict, f, indent=4)
     f.write("\n\n\n")
-    f.close
+    f.close()
     print("Data saved to file {}".format(file_name))
 
 
 def create_counter_json():
     global count_dict
+    total_actions = 0
+    total_keyboard_actions = 0
+    total_mouse_actions = 0
     ordered_dict = OrderedDict()
     for pair in sorted(count_dict.items(), key=lambda kv: (kv[1], kv[0]), reverse=True):
+        if "click" in pair[0]:
+            total_mouse_actions += pair[1]
+        else:
+            total_keyboard_actions += pair[1]
+        total_actions += pair[1]
         ordered_dict[pair[0]] = pair[1]
+    ordered_dict["total_mouse_actions"] = total_mouse_actions
+    ordered_dict["total_keyboard_actions"] = total_keyboard_actions
+    ordered_dict["total_actions"] = total_actions
     return ordered_dict
 
 
 def on_press_reaction(event):
+    if not check_if_right_window():
+        return
     global count_dict
     event_name = event.name
     if event_name in count_dict:
@@ -254,6 +284,8 @@ def on_press_reaction(event):
 
 
 def on_left_click_reaction():
+    if not check_if_right_window():
+        return
     global count_dict
     if "left click" in count_dict:
         count_dict["left click"] += 1
@@ -262,6 +294,8 @@ def on_left_click_reaction():
 
 
 def on_right_click_reaction():
+    if not check_if_right_window():
+        return
     global count_dict
     if "right click" in count_dict:
         count_dict["right click"] += 1
@@ -269,5 +303,17 @@ def on_right_click_reaction():
         count_dict["right click"] = 1
 
 
+def check_if_right_window():
+    global LOL_CLIENT_PROCESS_NAME
+    return LOL_CLIENT_PROCESS_NAME == GetWindowText(GetForegroundWindow())
+
+
 if __name__ == "__main__":
-    run()
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(check_if_right_window, "interval", seconds=0.5)
+    scheduler.start()
+    try:
+        get_champion_to_be_played()
+    except (KeyboardInterrupt, SystemExit):
+        # Not strictly necessary if daemonic mode is enabled but should be done if possible
+        scheduler.shutdown()
