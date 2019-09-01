@@ -3,6 +3,7 @@ import mouse
 import json
 from collections import OrderedDict
 import time
+from datetime import datetime, timedelta
 import jellyfish
 import threading
 import sys
@@ -197,17 +198,7 @@ def treat_reactions(champion):
     global start_time
     print("You are playing {}!".format(champion))
     # TODO Get start time here to calculate the time difference
-    t = time.localtime(time.time())
-    start_time = "{} - {}/{}/{} - {}h:{}m:{}s\n".format(
-        file_name.split("_")[0],
-        t.tm_mday,
-        t.tm_mon,
-        t.tm_year,
-        t.tm_hour,
-        t.tm_min,
-        t.tm_sec,
-    )
-
+    start_time = int(time.time())
     keyboard.add_hotkey("ctrl+space", lambda: finish(create_file_name(champion)))
     keyboard.on_press(on_press_reaction)
     mouse.on_click(on_left_click_reaction)
@@ -240,17 +231,32 @@ def finish(file_name):
 def write_to_file(file_name, ordered_dict, start_time):
     create_counter_json()
     f = open(file_name, "a")
-    t = time.localtime(time.time())
+    end_time = int(time.time())
+    t1 = str(time.ctime(start_time))
+    t2 = str(time.ctime(end_time))
     # TODO make json correct, without text
     f.write(
-        "Start Recording Time: {}Finished Recording Time: {}/{}/{} - {}h:{}m:{}s\n".format(
-            start_time, t.tm_mday, t.tm_mon, t.tm_year, t.tm_hour, t.tm_min, t.tm_sec
+        "Start Recording Time: {}\nFinished Recording Time: {}\nGame Time: {}\n".format(
+            t1, t2, calculate_time_difenrence(t1, t2)
         )
     )
     json.dump(ordered_dict, f, indent=4)
     f.write("\n\n\n")
     f.close()
     print("Data saved to file {}".format(file_name))
+
+
+def calculate_time_difenrence(time1, time2):
+    FMT = "%H:%M:%S"
+    print(time1, time2)
+    tdelta = datetime.strptime(time2.split()[3], FMT) - datetime.strptime(
+        time1.split()[3], FMT
+    )
+    if tdelta.days < 0:
+        tdelta = timedelta(
+            days=0, seconds=tdelta.seconds, microseconds=tdelta.microseconds
+        )
+    return str(tdelta)
 
 
 def create_counter_json():
@@ -316,7 +322,6 @@ def game_happening():
 
 
 if __name__ == "__main__":
-    print(sys.argv)
     if len(sys.argv) <= 1:
         while not game_happening():
             print(
