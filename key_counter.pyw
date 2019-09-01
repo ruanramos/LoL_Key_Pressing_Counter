@@ -4,7 +4,10 @@ import json
 from collections import OrderedDict
 import time
 import jellyfish
+import threading
 import sys
+from win32gui import GetWindowText, GetForegroundWindow
+from apscheduler.schedulers.background import BackgroundScheduler
 
 champion_list = [
     "Aatrox",
