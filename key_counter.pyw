@@ -12,7 +12,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 
 # TODO Check for simultaneous presses and count it
-# TODO Stop program if too much time out of LoL window (if i forgot to stop)
 
 CHAMPION_LIST = [
     "Aatrox",
@@ -169,6 +168,12 @@ count_dict = {}
 close_program = False
 file_name = ""
 start_time = ""
+total_actions = 0
+total_keyboard_actions = 0
+total_mouse_actions = 0
+actions_per_second = 0
+mouse_actions_per_second = 0
+keyboard_actions_per_second = 0
 
 
 def get_champion_to_be_played():
@@ -177,17 +182,18 @@ def get_champion_to_be_played():
     champion = input()
     for c in CHAMPION_LIST:
         similarity_ratio = jellyfish.jaro_winkler(c, champion.lower().capitalize())
-        if similarity_ratio <= 0.8 and similarity_ratio >= 0.7:
+        if similarity_ratio >= 0.85:
+            treat_reactions(c)
+            break
+        elif 0.8 >= similarity_ratio >= 0.7:
             print("Did you mean {}? y/n".format(c))
-            answer = input()
-            if answer == "y" or answer == "yes":
+            ans = input()
+            if ans == "y" or ans == "yes":
                 treat_reactions(c)
                 break
             else:
                 continue
-        elif similarity_ratio >= 0.85:
-            treat_reactions(c)
-            break
+
     if c == "LastElement":
         print("You typed an invalid champion, stopping the program.")
     print("Bye")
@@ -219,34 +225,50 @@ def create_file_name(champion_name):
     return "{}_key_counter.json".format(champion_name.capitalize())
 
 
-def finish(file_name):
+def finish(file_to_save):
     global close_program
     global start_time
-    # TODO calculate medium keys per seconds
-    write_to_file(file_name, create_counter_json(), start_time)
-    close_program = True
-
-
-def write_to_file(file_name, ordered_dict, start_time):
-    create_counter_json()
-    f = open(file_name, "a")
     end_time = int(time.time())
     t1 = str(time.ctime(start_time))
     t2 = str(time.ctime(end_time))
-    time_difference = calculate_time_difenrence(t1, t2)
+    time_difference = calculate_time_difference(t1, t2)
+    write_to_file(
+        file_to_save,
+        create_counter_json(time_difference),
+        t1,
+        t2,
+        str(time_difference)
+    )
+    close_program = True
+
+
+def str_time_2_seconds(time_str):
+    # 0:00:00
+    print(time_str)
+    seconds = int(time_str[5:])
+    minutes = int(time_str[2:4])
+    hours = int(time_str[0:1])
+    return seconds + 60 * minutes + 3600 * hours
+
+
+def write_to_file(
+    file_to_save, ordered_dict, start_time_to_save, end_time, time_difference
+):
+    create_counter_json(time_difference)
+    f = open(file_to_save, "a")
     # TODO make json correct, without text
     f.write(
         "Start Recording Time: {}\nFinished Recording Time: {}\nGame Time: {}\n".format(
-            t1, t2, str(time_difference)
+            start_time_to_save, end_time, time_difference
         )
     )
     json.dump(ordered_dict, f, indent=4)
     f.write("\n\n\n")
     f.close()
-    print("Data saved to file {}".format(file_name))
+    print("Data saved to file {}".format(file_to_save))
 
 
-def calculate_time_difenrence(time1, time2):
+def calculate_time_difference(time1, time2):
     FMT = "%H:%M:%S"
     print(time1, time2)
     tdelta = datetime.strptime(time2.split()[3], FMT) - datetime.strptime(
@@ -259,11 +281,14 @@ def calculate_time_difenrence(time1, time2):
     return tdelta
 
 
-def create_counter_json():
+def create_counter_json(time_difference):
     global count_dict
-    total_actions = 0
-    total_keyboard_actions = 0
-    total_mouse_actions = 0
+    global total_actions
+    global total_keyboard_actions
+    global total_mouse_actions
+    global mouse_actions_per_second
+    global keyboard_actions_per_second
+    global actions_per_second
     ordered_dict = OrderedDict()
     for pair in sorted(count_dict.items(), key=lambda kv: (kv[1], kv[0]), reverse=True):
         if "click" in pair[0]:
@@ -272,9 +297,16 @@ def create_counter_json():
             total_keyboard_actions += pair[1]
         total_actions += pair[1]
         ordered_dict[pair[0]] = pair[1]
-    ordered_dict["total_mouse_actions"] = total_mouse_actions
-    ordered_dict["total_keyboard_actions"] = total_keyboard_actions
-    ordered_dict["total_actions"] = total_actions
+
+    actions_per_second = total_actions / (str_time_2_seconds(str(time_difference)) + 1)
+    mouse_actions_per_second = total_mouse_actions / (str_time_2_seconds(str(time_difference)) + 1)
+    keyboard_actions_per_second = total_keyboard_actions / (str_time_2_seconds(str(time_difference)) + 1)
+    ordered_dict["Total Mouse Actions"] = total_mouse_actions
+    ordered_dict["Total Keyboard Actions"] = total_keyboard_actions
+    ordered_dict["Total Actions"] = total_actions
+    ordered_dict["Mouse Actions Per Second"] = mouse_actions_per_second
+    ordered_dict["Keyboard Actions Per Second"] = keyboard_actions_per_second
+    ordered_dict["Actions Per Second"] = actions_per_second
     return ordered_dict
 
 
